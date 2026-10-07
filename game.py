@@ -499,6 +499,72 @@ class GameEngine:
                 self.won = True
                 self.status = "Treasure found!"
 
+    def draw_minimap(self):
+        # Mini-map dimensions.
+        map_tile = 8
+        map_width = COLS * map_tile
+        map_height = ROWS * map_tile
+
+        # Place the mini-map in the top-right corner of the
+        # existing game area.
+        margin = 10
+        map_x = WIDTH - map_width - margin
+        map_y = margin
+
+        # Background/border for the mini-map.
+        border = pygame.Rect(
+            map_x - 4,
+            map_y - 4,
+            map_width + 8,
+            map_height + 8
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (15,15,25),
+            border
+        )
+
+        # Draw the actual dungeon layout.
+        for r in range(ROWS):
+            for c in range(COLS):
+                if self.grid[r][c] == WALL:
+                    color = (45,40,55)
+                else:
+                    color = (180,170,150)
+
+                rect = pygame.Rect(
+                    map_x + c * map_tile,
+                    map_y + r * map_tile,
+                    map_tile,
+                    map_tile
+                )
+
+                pygame.draw.rect(
+                    self.screen,
+                    color,
+                    rect
+                )
+
+        # Convert the player's actual world position to a
+        # mini-map position.
+        player_col = self.player.rect.centerx // TILE
+        player_row = self.player.rect.centery // TILE
+
+        if 0 <= player_col < COLS and 0 <= player_row < ROWS:
+            player_rect = pygame.Rect(
+                map_x + player_col * map_tile + 1,
+                map_y + player_row * map_tile + 1,
+                map_tile - 2,
+                map_tile - 2
+            )
+
+            pygame.draw.rect(
+                self.screen,
+                (50,140,255),
+                player_rect
+            )
+
     def draw(self):
         self.screen.fill((30,25,40))
 
@@ -540,6 +606,9 @@ class GameEngine:
 
         self.guard.draw(self.screen)
         self.player.draw(self.screen)
+
+        # Task 3: draw the mini-map every frame.
+        self.draw_minimap()
 
         hud = pygame.Rect(
             0,
