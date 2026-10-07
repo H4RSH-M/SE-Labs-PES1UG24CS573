@@ -8,6 +8,43 @@ SPEED = 3
 GUARD_SPEED = 2
 
 
+def has_path(grid, start, target):
+    if start is None or target is None:
+        return False
+
+    start_r, start_c = start[1], start[0]
+    target_r, target_c = target[1], target[0]
+
+    queue = [(start_r, start_c)]
+    visited = {(start_r, start_c)}
+
+    while queue:
+        r, c = queue.pop(0)
+
+        if (r, c) == (target_r, target_c):
+            return True
+
+        for dr, dc in [(1,0), (-1,0), (0,1), (0,-1)]:
+            nr = r + dr
+            nc = c + dc
+
+            if not (0 <= nr < ROWS and 0 <= nc < COLS):
+                continue
+
+            if (nr, nc) in visited:
+                continue
+
+            # Only FLOOR, KEY and CHEST are considered safe
+            # paths. TRAP tiles are deliberately excluded.
+            if grid[nr][nc] not in (FLOOR, KEY, CHEST):
+                continue
+
+            visited.add((nr, nc))
+            queue.append((nr, nc))
+
+    return False
+
+
 def generate_world():
     grid = [[WALL]*COLS for _ in range(ROWS)]
     rooms = []
@@ -40,14 +77,24 @@ def generate_world():
             grid[cy][bx] = FLOOR
             cy += 1 if by > cy else -1
 
+    chest_pos = None
+    key_pos = None
+
     if len(rooms) >= 2:
         cr, ck = rooms[-1], rooms[-2]
+
+        chest_pos = (cr.centerx, cr.centery)
+        key_pos = (ck.centerx, ck.centery)
+
         grid[cr.centery][cr.centerx] = CHEST
         grid[ck.centery][ck.centerx] = KEY
 
     start = rooms[0] if rooms else None
 
     # Add traps to random floor tiles.
+    # A trap is only placed if a trap-free route still exists
+    # from the starting area to the key and from the key to
+    # the chest.
     trap_count = 8
     floor_tiles = []
 
@@ -57,12 +104,43 @@ def generate_world():
                 # Don't place traps in the starting room.
                 if start is not None and start.collidepoint(c, r):
                     continue
+
                 floor_tiles.append((r, c))
 
     random.shuffle(floor_tiles)
 
-    for r, c in floor_tiles[:trap_count]:
-        grid[r][c] = TRAP
+    if start is not None and key_pos is not None and chest_pos is not None:
+        start_pos = (start.centerx, start.centery)
+
+        traps_added = 0
+
+        for r, c in floor_tiles:
+            if traps_added >= trap_count:
+                break
+
+            # Temporarily place the trap.
+            grid[r][c] = TRAP
+
+            # Check that both important routes still have
+            # at least one safe path.
+            start_to_key = has_path(
+                grid,
+                start_pos,
+                key_pos
+            )
+
+            key_to_chest = has_path(
+                grid,
+                key_pos,
+                chest_pos
+            )
+
+            if start_to_key and key_to_chest:
+                traps_added += 1
+            else:
+                # This trap would make an important objective
+                # inaccessible, so restore the floor.
+                grid[r][c] = FLOOR
 
     return grid, start
 
@@ -205,6 +283,7 @@ class GameEngine:
 
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont("monospace", 24)
+        self.inventory_font = pygame.font.SysFont("monospace", 18)
         self.big_font = pygame.font.SysFont(
             "monospace",
             40,
@@ -278,8 +357,6 @@ class GameEngine:
                     if not valid:
                         continue
 
-                    # Prefer locations away from the starting room
-                    # and not immediately beside the player start.
                     in_start_room = (
                         self.start_room is not None
                         and self.start_room.collidepoint(c, r)
@@ -379,8 +456,6 @@ class GameEngine:
 
             return Guard(x1, y1, x2, y2)
 
-        # Final fallback:
-        # Find any adjacent FLOOR pair in the dungeon.
         return self.find_fallback_guard()
 
     def find_fallback_guard(self):
@@ -429,8 +504,6 @@ class GameEngine:
 
             return Guard(x1, y1, x2, y2)
 
-        # The generated dungeon always contains rooms, so this
-        # should never be reached.
         return Guard(
             TILE+6,
             TILE+6,
@@ -500,18 +573,14 @@ class GameEngine:
                 self.status = "Treasure found!"
 
     def draw_minimap(self):
-        # Mini-map dimensions.
         map_tile = 8
         map_width = COLS * map_tile
         map_height = ROWS * map_tile
 
-        # Place the mini-map in the top-right corner of the
-        # existing game area.
         margin = 10
         map_x = WIDTH - map_width - margin
         map_y = margin
 
-        # Background/border for the mini-map.
         border = pygame.Rect(
             map_x - 4,
             map_y - 4,
@@ -525,7 +594,6 @@ class GameEngine:
             border
         )
 
-        # Draw the actual dungeon layout.
         for r in range(ROWS):
             for c in range(COLS):
                 if self.grid[r][c] == WALL:
@@ -546,8 +614,6 @@ class GameEngine:
                     rect
                 )
 
-        # Convert the player's actual world position to a
-        # mini-map position.
         player_col = self.player.rect.centerx // TILE
         player_row = self.player.rect.centery // TILE
 
@@ -564,6 +630,49 @@ class GameEngine:
                 (50,140,255),
                 player_rect
             )
+
+    def draw_inventory(self):
+        # Inventory panel is part of the existing HUD.
+        inventory_rect = pygame.Rect(
+            WIDTH - 260,
+            ROWS*TILE + 5,
+            250,
+            40
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (35,35,50),
+            inventory_rect,
+            border_radius=5
+        )
+
+        pygame.draw.rect(
+            self.screen,
+            (90,90,110),
+            inventory_rect,
+            1,
+            border_radius=5
+        )
+
+        if self.player.has_key:
+            text = "Inventory: [KEY]"
+        else:
+            text = "Inventory: [EMPTY]"
+
+        inventory_text = self.inventory_font.render(
+            text,
+            True,
+            (230,230,230)
+        )
+
+        self.screen.blit(
+            inventory_text,
+            (
+                inventory_rect.x + 10,
+                inventory_rect.y + 10
+            )
+        )
 
     def draw(self):
         self.screen.fill((30,25,40))
@@ -607,7 +716,7 @@ class GameEngine:
         self.guard.draw(self.screen)
         self.player.draw(self.screen)
 
-        # Task 3: draw the mini-map every frame.
+        # Task 3 mini-map.
         self.draw_minimap()
 
         hud = pygame.Rect(
@@ -633,6 +742,9 @@ class GameEngine:
             st,
             (8,ROWS*TILE+13)
         )
+
+        # Task 4 inventory.
+        self.draw_inventory()
 
         if self.won:
             ov=pygame.Surface(
