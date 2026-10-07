@@ -3,7 +3,7 @@ import random
 
 TILE = 40
 COLS, ROWS = 20, 15
-WALL, FLOOR, CHEST, KEY = 0, 1, 2, 3
+WALL, FLOOR, CHEST, KEY, TRAP = 0, 1, 2, 3, 4
 SPEED = 3
 
 def generate_world():
@@ -40,6 +40,24 @@ def generate_world():
         grid[ck.centery][ck.centerx] = KEY
 
     start = rooms[0] if rooms else None
+
+    # Add traps to random floor tiles.
+    trap_count = 8
+    floor_tiles = []
+
+    for r in range(ROWS):
+        for c in range(COLS):
+            if grid[r][c] == FLOOR:
+                # Don't place traps in the starting room.
+                if start is not None and start.collidepoint(c, r):
+                    continue
+                floor_tiles.append((r, c))
+
+    random.shuffle(floor_tiles)
+
+    for r, c in floor_tiles[:trap_count]:
+        grid[r][c] = TRAP
+        
     return grid, start
 
 COLORS = {
@@ -47,6 +65,7 @@ COLORS = {
     FLOOR: (200,190,170),
     CHEST: (200,160,30),
     KEY: (220,220,60),
+    TRAP : (180,50,50),
 }
 
 class Player:
@@ -99,6 +118,9 @@ class GameEngine:
             sy = start.y * TILE + 6
         else:
             sx, sy = TILE+6, TILE+6
+
+        self.start_x = sx
+        self.start_y = sy
         self.player = Player(sx, sy)
         self.won = False
         self.status = "Find the KEY, then the CHEST!"
@@ -117,7 +139,10 @@ class GameEngine:
         pc = self.player.rect.centerx // TILE
         if 0<=pr<ROWS and 0<=pc<COLS:
             cell = self.grid[pr][pc]
-            if cell == KEY:
+            if cell == TRAP:
+                self.player.rect.topleft = (self.start_x, self.start_y)
+                self.status = "Trap triggered! Back to the start!"
+            elif cell == KEY:
                 self.player.has_key = True
                 self.grid[pr][pc] = FLOOR
                 self.status = "Got the key! Find the CHEST!"
