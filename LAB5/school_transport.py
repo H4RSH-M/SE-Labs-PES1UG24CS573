@@ -32,7 +32,7 @@ def export_roster(connection, path, route):
 
 
 def dispatch_alert(route):
-    """Display a dispatch alert for a bus route."""
+    """Display a dispatch alert for the specified route."""
     print(f"Dispatching bus {route}")
 
 
@@ -68,9 +68,8 @@ def main():
         enroll_rider(connection, "Kabir", "R1", "Mill Street", 1800)
         enroll_rider(connection, "Zoya", "R2", "Fort Gate", 2100)
 
-        total_fees = fee_collected(connection, "R1")
-        if total_fees != 3600:
-            print(f"Unexpected fee total: {total_fees}")
+        if fee_collected(connection, "R1") != 3600:
+            raise ValueError("Fee total for route R1 is incorrect")
 
         export_roster(connection, "route_r1.txt", "R1")
         dispatch_alert("R1")

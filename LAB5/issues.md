@@ -1,11 +1,35 @@
-| Issue | Type | Line(s) | Description | Fix Approach |
-|---|---|---|---|---|
-| Shell execution | Security - High | 24 | `subprocess.run()` uses `shell=True`, creating a potential command-injection risk. | Avoid shell execution; pass arguments as a list. |
-| SQL injection risk | Security - Medium | 9 | SQL query is built using an f-string containing rider data. | Use parameterized SQL queries. |
-| Bare exception | Quality | 30 | A bare `except` can hide unexpected errors. | Catch specific exceptions. |
-| Missing docstrings | Maintainability | 1, 8, 13, 17, 23, 27, 34 | The module and functions lack documentation. | Add meaningful docstrings. |
-| Non-standard function names | Style | 8, 13, 17, 23, 27 | Function names use camelCase instead of snake_case. | Rename functions consistently and update their calls. |
-| Long lines | Style | 5, 9, 14, 29 | Several lines exceed the Flake8 limit of 79 characters. | Split long expressions across multiple lines. |
-| Missing whitespace | Style | 8 | Commas are not followed by spaces in several places. | Apply standard Python spacing. |
-| Unused argument | Quality | 13 | The `driver` argument is unused. | Remove it if unnecessary, or use it appropriately. |
-| Bare assertion | Quality | 38 | An `assert` is used for a runtime check; assertions can be disabled with optimization. | Replace it with an explicit conditional check. |
+# Static Analysis Issues and Fixes
+
+## 1. Initial Findings
+
+The original `school_transport.py` was analyzed using Pylint, Bandit, and Flake8.
+
+| Tool | Initial findings |
+|---|---|
+| Pylint | 4.00/10; naming violations, missing docstrings, long lines, and resource-handling issues |
+| Bandit | SQL injection risk, shell execution risk, bare exception, and assertion usage |
+| Flake8 | Long lines, missing whitespace, insufficient blank lines, and bare exception |
+
+## 2. Fixes Implemented
+
+- Replaced string-built SQL queries with parameterized queries.
+- Removed shell-based subprocess execution.
+- Replaced bare exception handling with explicit fee calculation.
+- Replaced the runtime assertion with explicit error handling.
+- Converted function names to snake_case.
+- Added module and function docstrings.
+- Used context managers for database connections and file handling.
+- Corrected whitespace, line lengths, and formatting.
+- Preserved rider registration, roster export, dispatch, and fee calculation functionality.
+
+## 3. Final Results
+
+| Tool | Final result |
+|---|---|
+| Pylint | 10.00/10 |
+| Bandit | No issues identified |
+| Flake8 | No violations reported |
+
+## 4. Conclusion
+
+Static analysis helped identify security, maintainability, and formatting issues in the original program. The revised implementation addresses the identified issues while preserving the intended functionality.
