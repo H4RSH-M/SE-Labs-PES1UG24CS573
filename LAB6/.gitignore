@@ -1,0 +1,4 @@
+echo __pycache__/
+echo .pytest_cache/
+echo .coverage
+echo htmlcov/
