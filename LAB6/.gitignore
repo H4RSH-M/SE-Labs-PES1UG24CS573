@@ -1,4 +1,4 @@
-echo __pycache__/
-echo .pytest_cache/
-echo .coverage
-echo htmlcov/
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
